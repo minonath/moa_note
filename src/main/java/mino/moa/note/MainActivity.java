@@ -1,6 +1,7 @@
 package mino.moa.note;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.*;
 import android.os.Bundle;
@@ -10,6 +11,7 @@ import android.util.TypedValue;
 import android.view.MotionEvent;
 import android.view.ViewTreeObserver;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -161,6 +163,7 @@ public class MainActivity extends AppCompatActivity {
             edit.apply();
         });
         widget_view_edit.setOnClickListener(view -> {
+            if (mode_view) textChange();
             mode_view = !mode_view;
             ((TextView) view).setText(mode_view ? R.string.view : R.string.edit);
             updateButtonFunctionEnable();
@@ -424,9 +427,10 @@ public class MainActivity extends AppCompatActivity {
     private static final int DELAY_STEP = 100;
     private static final int DELAY_SLOW = 500;
 
-    final Handler handler = new Handler(Looper.myLooper());
+    private final Handler handler = new Handler(Looper.myLooper());
+    private final Set<Runnable> keep = new HashSet<>();
 
-    final Runnable run_left = new Runnable() {
+    private final Runnable run_left = new Runnable() {
         @Override
         public void run() {
             arrowMoveLeft(mode_full ? 1 : 0.5f);
@@ -435,7 +439,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    final Runnable run_up = new Runnable() {
+    private final Runnable run_up = new Runnable() {
         @Override
         public void run() {
             arrowMoveUp(mode_full ? 1 : 0.5f);
@@ -444,7 +448,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    final Runnable run_right = new Runnable() {
+    private final Runnable run_right = new Runnable() {
         @Override
         public void run() {
             arrowMoveRight(mode_full ? 1 : 0.5f);
@@ -453,7 +457,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    final Runnable run_down = new Runnable() {
+    private final Runnable run_down = new Runnable() {
         @Override
         public void run() {
             arrowMoveDown(mode_full ? 1 : 0.5f);
@@ -462,7 +466,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    final Runnable run_newline = new Runnable() {
+    private final Runnable run_newline = new Runnable() {
         @Override
         public void run() {
             arrowMoveNewLine(mode_full ? 1 : 0.5f);
@@ -471,7 +475,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    final Runnable run_backspace = new Runnable() {
+    private final Runnable run_backspace = new Runnable() {
         @Override
         public void run() {
             int lx = Math.min(W, (int) (file_current.x + image_width * file_current.rate));
@@ -488,7 +492,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    final Runnable run_minus = new Runnable() {
+    private final Runnable run_minus = new Runnable() {
         @Override
         public void run() {
             file_current.step += 1;
@@ -499,7 +503,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    final Runnable run_plus = new Runnable() {
+    private final Runnable run_plus = new Runnable() {
         @Override
         public void run() {
             if (file_current.step > 1) {
@@ -512,7 +516,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    final Runnable run_next = new Runnable() {
+    private final Runnable run_next = new Runnable() {
         @Override
         public void run() {
             saveFileData();
@@ -520,12 +524,16 @@ public class MainActivity extends AppCompatActivity {
             loadFileData(file_name, file_index);
             file_current.delay(image_width, image_height, W, H);
             updateImageView();
+            InputMethodManager input_manager = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            if (input_manager != null) {
+                input_manager.hideSoftInputFromWindow(widget_text.getWindowToken(), 0);
+            }
             widget_text.clearFocus();
             handler.postDelayed(this, DELAY_SLOW);
         }
     };
 
-    final Runnable run_previous = new Runnable() {
+    private final Runnable run_previous = new Runnable() {
         @Override
         public void run() {
             saveFileData();
@@ -538,6 +546,10 @@ public class MainActivity extends AppCompatActivity {
             loadFileData(file_name, file_index);
             file_current.delay(image_width, image_height, W, H);
             updateImageView();
+            InputMethodManager input_manager = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            if (input_manager != null) {
+                input_manager.hideSoftInputFromWindow(widget_text.getWindowToken(), 0);
+            }
             widget_text.clearFocus();
             handler.postDelayed(this, DELAY_SLOW);
         }
@@ -548,9 +560,11 @@ public class MainActivity extends AppCompatActivity {
         widget_left.setOnTouchListener((view, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
+                    keep.add(run_left);
                     run_left.run();
                     return true;
                 case MotionEvent.ACTION_UP:
+                    keep.remove(run_left);
                     handler.removeCallbacks(run_left);
                     return true;
             }
@@ -559,9 +573,11 @@ public class MainActivity extends AppCompatActivity {
         widget_down.setOnTouchListener((view, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
+                    keep.add(run_down);
                     run_down.run();
                     return true;
                 case MotionEvent.ACTION_UP:
+                    keep.remove(run_down);
                     handler.removeCallbacks(run_down);
                     return true;
             }
@@ -570,9 +586,11 @@ public class MainActivity extends AppCompatActivity {
         widget_right.setOnTouchListener((view, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
+                    keep.add(run_right);
                     run_right.run();
                     return true;
                 case MotionEvent.ACTION_UP:
+                    keep.remove(run_right);
                     handler.removeCallbacks(run_right);
                     return true;
             }
@@ -581,9 +599,11 @@ public class MainActivity extends AppCompatActivity {
         widget_up.setOnTouchListener((view, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
+                    keep.add(run_up);
                     run_up.run();
                     return true;
                 case MotionEvent.ACTION_UP:
+                    keep.remove(run_up);
                     handler.removeCallbacks(run_up);
                     return true;
             }
@@ -592,9 +612,11 @@ public class MainActivity extends AppCompatActivity {
         widget_newline.setOnTouchListener((view, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
+                    keep.add(run_newline);
                     run_newline.run();
                     return true;
                 case MotionEvent.ACTION_UP:
+                    keep.remove(run_newline);
                     handler.removeCallbacks(run_newline);
                     return true;
             }
@@ -624,9 +646,11 @@ public class MainActivity extends AppCompatActivity {
         widget_backspace.setOnTouchListener((view, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
+                    keep.add(run_backspace);
                     run_backspace.run();
                     return true;
                 case MotionEvent.ACTION_UP:
+                    keep.remove(run_backspace);
                     handler.removeCallbacks(run_backspace);
                     return true;
             }
@@ -635,9 +659,11 @@ public class MainActivity extends AppCompatActivity {
         widget_minus.setOnTouchListener((view, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
+                    keep.add(run_minus);
                     run_minus.run();
                     return true;
                 case MotionEvent.ACTION_UP:
+                    keep.remove(run_minus);
                     handler.removeCallbacks(run_minus);
                     return true;
             }
@@ -646,9 +672,11 @@ public class MainActivity extends AppCompatActivity {
         widget_plus.setOnTouchListener((view, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
+                    keep.add(run_plus);
                     run_plus.run();
                     return true;
                 case MotionEvent.ACTION_UP:
+                    keep.remove(run_plus);
                     handler.removeCallbacks(run_plus);
                     return true;
             }
@@ -656,38 +684,45 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void textChange() {
+        String name = legalName(widget_text.getText().toString());
+        if (!(file_name + "-" + file_index).equals(name)) {
+            saveFileData();
+            int index = name.lastIndexOf("-");
+            if (index == -1) {
+                loadFileData(name, 0);
+            } else {
+                try {
+                    loadFileData(name.substring(0, index),
+                            Integer.parseInt(name.substring(index + 1)));
+                } catch (NumberFormatException exception) {
+                    loadFileData(name, 0);
+                }
+            }
+            file_current.delay(image_width, image_height, W, H);
+        }
+        updateImageView();
+        InputMethodManager input_manager = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (input_manager != null) {
+            input_manager.hideSoftInputFromWindow(widget_text.getWindowToken(), 0);
+        }
+        widget_text.clearFocus();
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     private void initialButtonFunction_TEXT() {
         widget_text.setOnEditorActionListener((view, id, event) -> {
-            if (id == EditorInfo.IME_ACTION_DONE || id == EditorInfo.IME_ACTION_SEND) {
-                String name = legalName(widget_text.getText().toString());
-                if (!(file_name + "-" + file_index).equals(name)) {
-                    saveFileData();
-                }
-                int index = name.lastIndexOf("-");
-                if (index == -1) {
-                    loadFileData(name, 0);
-                } else {
-                    try {
-                        loadFileData(name.substring(0, index),
-                                Integer.parseInt(name.substring(index + 1)));
-                    } catch (NumberFormatException exception) {
-                        loadFileData(name, 0);
-                    }
-                }
-                file_current.delay(image_width, image_height, W, H);
-                updateImageView();
-                widget_text.clearFocus();
-                return true;
-            }
-            return false;
+            textChange();
+            return true;
         });
         widget_next.setOnTouchListener((view, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
+                    keep.add(run_next);
                     run_next.run();
                     return true;
                 case MotionEvent.ACTION_UP:
+                    keep.remove(run_next);
                     handler.removeCallbacks(run_next);
                     return true;
             }
@@ -696,9 +731,11 @@ public class MainActivity extends AppCompatActivity {
         widget_previous.setOnTouchListener((view, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
+                    keep.add(run_previous);
                     run_previous.run();
                     return true;
                 case MotionEvent.ACTION_UP:
+                    keep.remove(run_previous);
                     handler.removeCallbacks(run_previous);
                     return true;
             }
@@ -709,6 +746,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+        for (Runnable runnable : keep) {
+            handler.removeCallbacks(runnable);
+        }
+        keep.clear();
         saveFileData();
         File cache = new File(getExternalFilesDir(null), "cache");
         try (FileOutputStream fos = new FileOutputStream(cache)) {
