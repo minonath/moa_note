@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">Moa\'s Note</string>
+    <string name="previous">Prev</string>
+    <string name="next">Next</string>
+    <string name="full">Full</string>
+    <string name="half">Half</string>
+    <string name="left">←</string>
+    <string name="right">→</string>
+    <string name="up">↑</string>
+    <string name="down">↓</string>
+    <string name="minus">−</string>
+    <string name="plus">+</string>
+    <string name="edit">Edit</string>
+    <string name="view">View</string>
+    <string name="lock">Lock</string>
+    <string name="free">Free</string>
+    <string name="delete">Del</string>
+    <string name="backspace">Back</string>
+    <string name="newline">Line</string>
+</resources>
